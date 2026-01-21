@@ -1,0 +1,128 @@
+<?php
+/**
+ * فئة المصادقة - Auth Class
+ */
+
+class Auth {
+    private $user;
+    private $db;
+    
+    public function __construct() {
+        $this->user = new User();
+        $this->db = getDB();
+    }
+    
+    public function login($username, $password, $remember = false) {
+        $user = $this->user->findByUsernameOrEmail($username);
+        
+        if (!$user) {
+            $this->logLoginAttempt(null, $username, 'failed', 'المستخدم غير موجود');
+            return ['success' => false, 'message' => 'بيانات الدخول غير صحيحة'];
+        }
+        
+        if ($this->user->isLocked($user['id'])) {
+            $this->logLoginAttempt($user['id'], $username, 'locked', 'الحساب مقفل');
+            return ['success' => false, 'message' => 'الحساب مقفل مؤقتاً. حاول مرة أخرى لاحقاً'];
+        }
+        
+        if ($user['status'] === STATUS_PENDING) {
+            return ['success' => false, 'message' => 'الحساب غير مفعل. يرجى تفعيل حسابك أولاً'];
+        }
+        
+        if ($user['status'] === STATUS_SUSPENDED) {
+            return ['success' => false, 'message' => 'الحساب معلق. تواصل مع الإدارة'];
+        }
+        
+        if ($user['status'] === STATUS_BANNED) {
+            return ['success' => false, 'message' => 'الحساب محظور'];
+        }
+        
+        if (!$this->user->verifyPassword($password, $user['password'])) {
+            $this->user->incrementLoginAttempts($user['id']);
+            $this->logLoginAttempt($user['id'], $username, 'failed', 'كلمة مرور خاطئة');
+            return ['success' => false, 'message' => 'بيانات الدخول غير صحيحة'];
+        }
+        
+        $this->createSession($user);
+        $this->user->updateLastLogin($user['id']);
+        $this->logLoginAttempt($user['id'], $username, 'success');
+        
+        if ($remember) {
+            $this->setRememberCookie($user['id']);
+        }
+        
+        return ['success' => true, 'message' => 'تم تسجيل الدخول بنجاح', 'user' => $user];
+    }
+    
+    public function register($data) {
+        $result = $this->user->create($data);
+        
+        if ($result) {
+            return [
+                'success' => true,
+                'message' => 'تم التسجيل بنجاح. انتظر تفعيل حسابك من قبل الإدارة',
+                'user_id' => $result['id'],
+                'activation_token' => $result['activation_token']
+            ];
+        }
+        
+        return ['success' => false, 'message' => 'فشل التسجيل. حاول مرة أخرى'];
+    }
+    
+    public function logout() {
+        if (isset($_SESSION['user_id'])) {
+            $this->user->updateRememberToken($_SESSION['user_id'], null);
+        }
+        
+        if (isset($_COOKIE['remember_token'])) {
+            setcookie('remember_token', '', time() - 3600, '/', '', false, true);
+        }
+        
+        $_SESSION = [];
+        if (session_id()) {
+            session_destroy();
+        }
+        
+        return true;
+    }
+    
+    public function checkRememberCookie() {
+        if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_token'])) {
+            $token = $_COOKIE['remember_token'];
+            $user = $this->user->findByRememberToken($token);
+            
+            if ($user && $user['status'] === STATUS_ACTIVE) {
+                $this->createSession($user);
+                $this->setRememberCookie($user['id']);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private function createSession($user) {
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['logged_in'] = true;
+        $_SESSION['last_activity'] = time();
+        $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'];
+        $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    }
+    
+    private function setRememberCookie($userId) {
+        $token = bin2hex(random_bytes(32));
+        $this->user->updateRememberToken($userId, $token);
+        setcookie('remember_token', $token, time() + COOKIE_LIFETIME, '/', '', false, true);
+    }
+    
+    private function logLoginAttempt($userId, $username, $status, $reason = null) {
+        $sql = "INSERT INTO login_logs (user_id, username, ip_address, user_agent, status, failure_reason) VALUES (?, ?, ?, ?, ?, ?)";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            $userId, $username, $_SERVER['REMOTE_ADDR'],
+            $_SERVER['HTTP_USER_AGENT'] ?? '', $status, $reason
+        ]);
+    }
+}

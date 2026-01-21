@@ -1,0 +1,273 @@
+<?php
+/**
+ * الصفحة الرئيسية
+ */
+require_once __DIR__ . '/config/init.php';
+
+$user = currentUser();
+$isGuest = !isLoggedIn();
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="موقع مقالات عربي - اقرأ أحدث المقالات في مختلف المجالات">
+    <title>taiz post</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">Taiz Post</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#" class="nav-link active">الرئيسية</a></li>
+                <li><a href="#articles" class="nav-link">المقالات</a></li>
+                <li><a href="#categories" class="nav-link">التصنيفات</a></li>
+                <li><a href="#about" class="nav-link">من نحن</a></li>
+            </ul>
+            
+            <div class="nav-auth">
+                <?php if (!$isGuest && hasRole([ROLE_ADMIN, ROLE_MODERATOR])): ?>
+                <a href="admin/dashboard.php" class="btn-dashboard">
+                    <span class="dashboard-icon">🎛️</span>
+                    <span>لوحة التحكم</span>
+                </a>
+                <?php endif; ?>
+                
+                <?php if ($isGuest): ?>
+                <a href="login.php" class="btn-login">تسجيل الدخول</a>
+                <a href="register.php" class="btn-register">إنشاء حساب</a>
+                <?php else: ?>
+                <div class="user-menu">
+                    <button class="user-menu-btn">
+                        <span class="user-avatar"><?= mb_substr($user['full_name'], 0, 1) ?></span>
+                        <span><?= escape($user['full_name']) ?></span>
+                    </button>
+                    <div class="user-dropdown">
+                        <?php if (hasRole([ROLE_ADMIN, ROLE_MODERATOR])): ?>
+                        <a href="admin/dashboard.php">🎛️ لوحة التحكم</a>
+                        <?php endif; ?>
+                        <a href="profile.php">👤 الملف الشخصي</a>
+                        <a href="logout.php">🚪 تسجيل الخروج</a>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
+            
+            <button class="menu-toggle" id="menuToggle">
+                <span></span><span></span><span></span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1 class="hero-title">
+                <span class="gradient-text">اكتشف عالم المعرفة</span>
+            </h1>
+            <p class="hero-subtitle">مقالات متنوعة في التقنية، الصحة، الثقافة والمزيد</p>
+            <a href="#articles" class="hero-btn">
+                <span>استكشف المقالات</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </a>
+        </div>
+        <div class="hero-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+        </div>
+    </section>
+
+    <!-- Categories Section -->
+    <section class="categories" id="categories">
+        <div class="container">
+            <h2 class="section-title">التصنيفات</h2>
+            <div class="categories-grid">
+                <div class="category-card" data-category="tech">
+                    <div class="category-icon">💻</div>
+                    <h3>التقنية</h3>
+                    <p>12 مقال</p>
+                </div>
+                <div class="category-card" data-category="health">
+                    <div class="category-icon">🏥</div>
+                    <h3>الصحة</h3>
+                    <p>8 مقالات</p>
+                </div>
+                <div class="category-card" data-category="culture">
+                    <div class="category-icon">📖</div>
+                    <h3>الثقافة</h3>
+                    <p>15 مقال</p>
+                </div>
+                <div class="category-card" data-category="travel">
+                    <div class="category-icon">✈️</div>
+                    <h3>السفر</h3>
+                    <p>10 مقالات</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Articles Section -->
+    <section class="articles" id="articles">
+        <div class="container">
+            <h2 class="section-title">أحدث المقالات</h2>
+            <div class="articles-grid">
+                <article class="article-card featured">
+                    <div class="article-image">
+                        <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=800" alt="الذكاء الاصطناعي">
+                        <span class="article-category">التقنية</span>
+                    </div>
+                    <div class="article-content">
+                        <div class="article-meta">
+                            <span class="article-date">📅 21 يناير 2026</span>
+                            <span class="article-read-time">⏱️ 5 دقائق قراءة</span>
+                        </div>
+                        <h3 class="article-title">مستقبل الذكاء الاصطناعي وتأثيره على حياتنا اليومية</h3>
+                        <p class="article-excerpt">اكتشف كيف يغير الذكاء الاصطناعي طريقة عملنا وتفاعلنا مع التكنولوجيا...</p>
+                        <a href="#" class="read-more">قراءة المزيد</a>
+                    </div>
+                </article>
+
+                <article class="article-card">
+                    <div class="article-image">
+                        <img src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800" alt="الصحة">
+                        <span class="article-category">الصحة</span>
+                    </div>
+                    <div class="article-content">
+                        <div class="article-meta">
+                            <span class="article-date">📅 20 يناير 2026</span>
+                            <span class="article-read-time">⏱️ 4 دقائق</span>
+                        </div>
+                        <h3 class="article-title">نصائح ذهبية للحفاظ على صحتك</h3>
+                        <p class="article-excerpt">تعرف على أفضل الطرق للحفاظ على صحتك...</p>
+                        <a href="#" class="read-more">قراءة المزيد</a>
+                    </div>
+                </article>
+
+                <article class="article-card">
+                    <div class="article-image">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800" alt="السفر">
+                        <span class="article-category">السفر</span>
+                    </div>
+                    <div class="article-content">
+                        <div class="article-meta">
+                            <span class="article-date">📅 19 يناير 2026</span>
+                            <span class="article-read-time">⏱️ 6 دقائق</span>
+                        </div>
+                        <h3 class="article-title">أجمل 10 وجهات سياحية في 2026</h3>
+                        <p class="article-excerpt">استكشف أفضل الوجهات السياحية حول العالم...</p>
+                        <a href="#" class="read-more">قراءة المزيد</a>
+                    </div>
+                </article>
+
+                <article class="article-card">
+                    <div class="article-image">
+                        <img src="https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800" alt="الثقافة">
+                        <span class="article-category">الثقافة</span>
+                    </div>
+                    <div class="article-content">
+                        <div class="article-meta">
+                            <span class="article-date">📅 18 يناير 2026</span>
+                            <span class="article-read-time">⏱️ 7 دقائق</span>
+                        </div>
+                        <h3 class="article-title">أهمية القراءة في تطوير الذات</h3>
+                        <p class="article-excerpt">تعرف على فوائد القراءة العديدة...</p>
+                        <a href="#" class="read-more">قراءة المزيد</a>
+                    </div>
+                </article>
+
+                <article class="article-card">
+                    <div class="article-image">
+                        <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800" alt="البرمجة">
+                        <span class="article-category">التقنية</span>
+                    </div>
+                    <div class="article-content">
+                        <div class="article-meta">
+                            <span class="article-date">📅 17 يناير 2026</span>
+                            <span class="article-read-time">⏱️ 8 دقائق</span>
+                        </div>
+                        <h3 class="article-title">دليلك لتعلم البرمجة من الصفر</h3>
+                        <p class="article-excerpt">خطوات عملية للبدء في رحلة البرمجة...</p>
+                        <a href="#" class="read-more">قراءة المزيد</a>
+                    </div>
+                </article>
+
+                <article class="article-card">
+                    <div class="article-image">
+                        <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800" alt="اليوغا">
+                        <span class="article-category">الصحة</span>
+                    </div>
+                    <div class="article-content">
+                        <div class="article-meta">
+                            <span class="article-date">📅 16 يناير 2026</span>
+                            <span class="article-read-time">⏱️ 5 دقائق</span>
+                        </div>
+                        <h3 class="article-title">فوائد اليوغا للجسم والعقل</h3>
+                        <p class="article-excerpt">اكتشف كيف تحسن اليوغا صحتك...</p>
+                        <a href="#" class="read-more">قراءة المزيد</a>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="newsletter" id="about">
+        <div class="container">
+            <div class="newsletter-content">
+                <h2>اشترك في نشرتنا البريدية</h2>
+                <p>احصل على أحدث المقالات مباشرة في بريدك</p>
+                <form class="newsletter-form">
+                    <input type="email" placeholder="أدخل بريدك الإلكتروني" required>
+                    <button type="submit">اشترك الآن</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">📚 مقالاتي</div>
+                    <p>منصة عربية للمقالات المتنوعة</p>
+                </div>
+                <div class="footer-links">
+                    <h4>روابط سريعة</h4>
+                    <ul>
+                        <li><a href="#">الرئيسية</a></li>
+                        <li><a href="#articles">المقالات</a></li>
+                        <li><a href="#categories">التصنيفات</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>التصنيفات</h4>
+                    <ul>
+                        <li><a href="#">التقنية</a></li>
+                        <li><a href="#">الصحة</a></li>
+                        <li><a href="#">الثقافة</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 مقالاتي. جميع الحقوق محفوظة.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

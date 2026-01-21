@@ -1,0 +1,135 @@
+<?php
+/**
+ * لوحة التحكم الرئيسية
+ */
+require_once __DIR__ . '/../config/init.php';
+
+if (!isLoggedIn() || !hasRole([ROLE_ADMIN, ROLE_MODERATOR])) {
+    flash('error', 'غير مصرح لك بالوصول', 'error');
+    redirect('/login.php');
+}
+
+$user = currentUser();
+$userModel = new User();
+
+// إحصائيات
+$stats = [
+    'total_users' => $userModel->count(),
+    'pending_users' => $userModel->count(['status' => STATUS_PENDING]),
+    'active_users' => $userModel->count(['status' => STATUS_ACTIVE]),
+    'admins' => $userModel->count(['role' => ROLE_ADMIN]),
+    'moderators' => $userModel->count(['role' => ROLE_MODERATOR]),
+    'members' => $userModel->count(['role' => ROLE_MEMBER])
+];
+
+// آخر المستخدمين المسجلين
+$recentUsers = $userModel->getAll(['limit' => 5]);
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - <?= SITE_NAME ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar -->
+        <?php include 'includes/sidebar.php'; ?>
+
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>لوحة التحكم</h1>
+                <p>مرحباً <?= escape($user['full_name']) ?>! 👋</p>
+            </header>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #6366f1, #818cf8)">👥</div>
+                    <div class="stat-info">
+                        <span class="stat-value"><?= $stats['total_users'] ?></span>
+                        <span class="stat-label">إجمالي المستخدمين</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24)">⏳</div>
+                    <div class="stat-info">
+                        <span class="stat-value"><?= $stats['pending_users'] ?></span>
+                        <span class="stat-label">بانتظار التفعيل</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #34d399)">✅</div>
+                    <div class="stat-info">
+                        <span class="stat-value"><?= $stats['active_users'] ?></span>
+                        <span class="stat-label">حسابات نشطة</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #ec4899, #f472b6)">🛡️</div>
+                    <div class="stat-info">
+                        <span class="stat-value"><?= $stats['moderators'] ?></span>
+                        <span class="stat-label">المشرفين</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Users -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>آخر المستخدمين المسجلين</h2>
+                    <a href="users.php" class="btn btn-sm">عرض الكل</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>المستخدم</th>
+                                <th>البريد</th>
+                                <th>الدور</th>
+                                <th>الحالة</th>
+                                <th>التاريخ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($recentUsers as $u): ?>
+                            <tr>
+                                <td>
+                                    <div class="user-cell">
+                                        <div class="avatar"><?= mb_substr($u['full_name'], 0, 1) ?></div>
+                                        <span><?= escape($u['full_name']) ?></span>
+                                    </div>
+                                </td>
+                                <td><?= escape($u['email']) ?></td>
+                                <td>
+                                    <span class="role-badge role-<?= $u['role'] ?>">
+                                        <?= $u['role'] === 'admin' ? 'مدير' : ($u['role'] === 'moderator' ? 'مشرف' : 'عضو') ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-<?= $u['status'] ?>">
+                                        <?php
+                                        $statuses = ['pending' => 'معلق', 'active' => 'نشط', 'suspended' => 'موقوف', 'banned' => 'محظور'];
+                                        echo $statuses[$u['status']] ?? $u['status'];
+                                        ?>
+                                    </span>
+                                </td>
+                                <td><?= date('Y/m/d', strtotime($u['created_at'])) ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

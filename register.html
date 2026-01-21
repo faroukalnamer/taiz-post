@@ -1,0 +1,200 @@
+<?php
+/**
+ * صفحة التسجيل
+ */
+require_once __DIR__ . '/config/init.php';
+
+if (isLoggedIn()) {
+    redirect('/index.php');
+}
+
+$errors = [];
+$old = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $errors['general'] = 'انتهت صلاحية الجلسة. أعد المحاولة';
+    } else {
+        $old = [
+            'username' => $_POST['username'] ?? '',
+            'email' => $_POST['email'] ?? '',
+            'full_name' => $_POST['full_name'] ?? ''
+        ];
+        
+        $validator = new Validator($_POST);
+        $validator->validateRegistration();
+        
+        if ($validator->hasErrors()) {
+            $errors = $validator->getErrors();
+        } else {
+            $auth = new Auth();
+            $result = $auth->register([
+                'username' => $_POST['username'],
+                'email' => $_POST['email'],
+                'password' => $_POST['password'],
+                'full_name' => $_POST['full_name']
+            ]);
+            
+            if ($result['success']) {
+                flash('success', $result['message'], 'success');
+                redirect('/login.php');
+            } else {
+                $errors['general'] = $result['message'];
+            }
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء حساب - <?= SITE_NAME ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <a href="index.php" class="logo">📚 <?= SITE_NAME ?></a>
+                <h1>إنشاء حساب جديد</h1>
+                <p>انضم إلينا وابدأ رحلتك معنا</p>
+            </div>
+
+            <?php if (!empty($errors['general'])): ?>
+            <div class="alert alert-error">
+                <span class="alert-icon">⚠️</span>
+                <?= escape($errors['general']) ?>
+            </div>
+            <?php endif; ?>
+
+            <form method="POST" class="auth-form" id="registerForm">
+                <?= csrfField() ?>
+                
+                <div class="form-group">
+                    <label for="full_name">الاسم الكامل</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">📝</span>
+                        <input type="text" id="full_name" name="full_name" 
+                               value="<?= escape($old['full_name'] ?? '') ?>"
+                               placeholder="أدخل اسمك الكامل"
+                               class="<?= isset($errors['full_name']) ? 'error' : '' ?>">
+                    </div>
+                    <?php if (isset($errors['full_name'])): ?>
+                    <span class="error-text"><?= escape($errors['full_name']) ?></span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-group">
+                    <label for="username">اسم المستخدم</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="username" name="username" 
+                               value="<?= escape($old['username'] ?? '') ?>"
+                               placeholder="مثال: ahmed123"
+                               class="<?= isset($errors['username']) ? 'error' : '' ?>">
+                    </div>
+                    <?php if (isset($errors['username'])): ?>
+                    <span class="error-text"><?= escape($errors['username']) ?></span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">البريد الإلكتروني</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">📧</span>
+                        <input type="email" id="email" name="email" 
+                               value="<?= escape($old['email'] ?? '') ?>"
+                               placeholder="example@mail.com"
+                               class="<?= isset($errors['email']) ? 'error' : '' ?>">
+                    </div>
+                    <?php if (isset($errors['email'])): ?>
+                    <span class="error-text"><?= escape($errors['email']) ?></span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">كلمة المرور</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="password" name="password" 
+                               placeholder="8 أحرف على الأقل"
+                               class="<?= isset($errors['password']) ? 'error' : '' ?>">
+                        <button type="button" class="toggle-password" onclick="togglePassword('password')">👁️</button>
+                    </div>
+                    <div class="password-strength" id="passwordStrength"></div>
+                    <?php if (isset($errors['password'])): ?>
+                    <span class="error-text"><?= escape($errors['password']) ?></span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-group">
+                    <label for="password_confirm">تأكيد كلمة المرور</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔐</span>
+                        <input type="password" id="password_confirm" name="password_confirm" 
+                               placeholder="أعد كتابة كلمة المرور"
+                               class="<?= isset($errors['password_confirm']) ? 'error' : '' ?>">
+                    </div>
+                    <?php if (isset($errors['password_confirm'])): ?>
+                    <span class="error-text"><?= escape($errors['password_confirm']) ?></span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="terms" required>
+                        <span>أوافق على <a href="#">الشروط والأحكام</a></span>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    <span>إنشاء الحساب</span>
+                    <span class="btn-loader"></span>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>لديك حساب بالفعل؟ <a href="login.php">سجل دخولك</a></p>
+            </div>
+        </div>
+
+        <div class="auth-bg">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+        </div>
+    </div>
+
+    <script>
+    function togglePassword(id) {
+        const input = document.getElementById(id);
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    document.getElementById('password').addEventListener('input', function() {
+        const strength = document.getElementById('passwordStrength');
+        const val = this.value;
+        let score = 0;
+        
+        if (val.length >= 8) score++;
+        if (/[A-Z]/.test(val)) score++;
+        if (/[a-z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+        
+        const levels = ['', 'ضعيفة', 'متوسطة', 'جيدة', 'قوية', 'ممتازة'];
+        const colors = ['', '#ef4444', '#f59e0b', '#eab308', '#22c55e', '#10b981'];
+        
+        strength.textContent = val ? 'قوة كلمة المرور: ' + levels[score] : '';
+        strength.style.color = colors[score];
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+        const btn = this.querySelector('button[type="submit"]');
+        btn.classList.add('loading');
+    });
+    </script>
+</body>
+</html>

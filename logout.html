@@ -1,0 +1,11 @@
+<?php
+/**
+ * تسجيل الخروج
+ */
+require_once __DIR__ . '/config/init.php';
+
+$auth = new Auth();
+$auth->logout();
+
+flash('success', 'تم تسجيل الخروج بنجاح', 'success');
+redirect('/login.php');

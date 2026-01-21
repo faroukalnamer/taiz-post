@@ -1,0 +1,239 @@
+<?php
+/**
+ * إدارة المستخدمين
+ */
+require_once __DIR__ . '/../config/init.php';
+
+if (!isLoggedIn() || !hasRole(ROLE_ADMIN)) {
+    flash('error', 'غير مصرح لك بالوصول', 'error');
+    redirect('/login.php');
+}
+
+$user = currentUser();
+$userModel = new User();
+
+// معالجة الإجراءات
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    $action = $_POST['action'] ?? '';
+    $userId = (int)($_POST['user_id'] ?? 0);
+    
+    if ($userId && $userId !== $user['id']) {
+        switch ($action) {
+            case 'activate':
+                $userModel->activateByAdmin($userId);
+                flash('success', 'تم تفعيل الحساب بنجاح', 'success');
+                break;
+            case 'suspend':
+                $userModel->suspend($userId);
+                flash('success', 'تم تعليق الحساب', 'success');
+                break;
+            case 'ban':
+                $userModel->ban($userId);
+                flash('success', 'تم حظر الحساب', 'success');
+                break;
+            case 'delete':
+                $userModel->delete($userId);
+                flash('success', 'تم حذف الحساب', 'success');
+                break;
+            case 'change_role':
+                $role = $_POST['role'] ?? '';
+                if (in_array($role, [ROLE_ADMIN, ROLE_MODERATOR, ROLE_MEMBER])) {
+                    $userModel->changeRole($userId, $role);
+                    flash('success', 'تم تغيير الدور بنجاح', 'success');
+                }
+                break;
+        }
+    }
+    redirect('/admin/users.php');
+}
+
+// الفلترة
+$filters = [
+    'status' => $_GET['status'] ?? '',
+    'role' => $_GET['role'] ?? '',
+    'search' => $_GET['search'] ?? ''
+];
+
+$users = $userModel->getAll($filters);
+$flashMsg = flash('success');
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المستخدمين - <?= SITE_NAME ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <?php include 'includes/sidebar.php'; ?>
+
+        <main class="main-content">
+            <header class="content-header">
+                <h1>إدارة المستخدمين</h1>
+            </header>
+
+            <?php if ($flashMsg): ?>
+            <div class="alert alert-<?= $flashMsg['type'] ?>">
+                <?= escape($flashMsg['message']) ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <form method="GET" class="filters-form">
+                    <div class="filter-group">
+                        <input type="text" name="search" placeholder="بحث..." value="<?= escape($filters['search']) ?>">
+                    </div>
+                    <div class="filter-group">
+                        <select name="status">
+                            <option value="">جميع الحالات</option>
+                            <option value="pending" <?= $filters['status'] === 'pending' ? 'selected' : '' ?>>معلق</option>
+                            <option value="active" <?= $filters['status'] === 'active' ? 'selected' : '' ?>>نشط</option>
+                            <option value="suspended" <?= $filters['status'] === 'suspended' ? 'selected' : '' ?>>موقوف</option>
+                            <option value="banned" <?= $filters['status'] === 'banned' ? 'selected' : '' ?>>محظور</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <select name="role">
+                            <option value="">جميع الأدوار</option>
+                            <option value="admin" <?= $filters['role'] === 'admin' ? 'selected' : '' ?>>مدير</option>
+                            <option value="moderator" <?= $filters['role'] === 'moderator' ? 'selected' : '' ?>>مشرف</option>
+                            <option value="member" <?= $filters['role'] === 'member' ? 'selected' : '' ?>>عضو</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">بحث</button>
+                    <a href="users.php" class="btn btn-secondary">إعادة تعيين</a>
+                </form>
+            </div>
+
+            <!-- Users Table -->
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>المستخدم</th>
+                                <th>البريد</th>
+                                <th>الدور</th>
+                                <th>الحالة</th>
+                                <th>تاريخ التسجيل</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($users as $u): ?>
+                            <tr>
+                                <td><?= $u['id'] ?></td>
+                                <td>
+                                    <div class="user-cell">
+                                        <div class="avatar"><?= mb_substr($u['full_name'], 0, 1) ?></div>
+                                        <div>
+                                            <span class="name"><?= escape($u['full_name']) ?></span>
+                                            <span class="username">@<?= escape($u['username']) ?></span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><?= escape($u['email']) ?></td>
+                                <td>
+                                    <span class="role-badge role-<?= $u['role'] ?>">
+                                        <?= $u['role'] === 'admin' ? 'مدير' : ($u['role'] === 'moderator' ? 'مشرف' : 'عضو') ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-<?= $u['status'] ?>">
+                                        <?php
+                                        $statuses = ['pending' => 'معلق', 'active' => 'نشط', 'suspended' => 'موقوف', 'banned' => 'محظور'];
+                                        echo $statuses[$u['status']] ?? $u['status'];
+                                        ?>
+                                    </span>
+                                </td>
+                                <td><?= date('Y/m/d H:i', strtotime($u['created_at'])) ?></td>
+                                <td>
+                                    <?php if ($u['id'] !== $user['id']): ?>
+                                    <div class="actions-dropdown">
+                                        <button class="btn btn-sm btn-icon">⋮</button>
+                                        <div class="dropdown-menu">
+                                            <?php if ($u['status'] === 'pending'): ?>
+                                            <form method="POST">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                <input type="hidden" name="action" value="activate">
+                                                <button type="submit" class="dropdown-item text-success">✅ تفعيل</button>
+                                            </form>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($u['status'] !== 'suspended'): ?>
+                                            <form method="POST">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                <input type="hidden" name="action" value="suspend">
+                                                <button type="submit" class="dropdown-item text-warning">⏸️ تعليق</button>
+                                            </form>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($u['status'] !== 'banned'): ?>
+                                            <form method="POST">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                <input type="hidden" name="action" value="ban">
+                                                <button type="submit" class="dropdown-item text-error">🚫 حظر</button>
+                                            </form>
+                                            <?php endif; ?>
+                                            
+                                            <hr class="dropdown-divider">
+                                            
+                                            <form method="POST" class="role-form">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                <input type="hidden" name="action" value="change_role">
+                                                <select name="role" onchange="this.form.submit()">
+                                                    <option value="">تغيير الدور</option>
+                                                    <option value="admin">مدير</option>
+                                                    <option value="moderator">مشرف</option>
+                                                    <option value="member">عضو</option>
+                                                </select>
+                                            </form>
+                                            
+                                            <hr class="dropdown-divider">
+                                            
+                                            <form method="POST" onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                <input type="hidden" name="action" value="delete">
+                                                <button type="submit" class="dropdown-item text-error">🗑️ حذف</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    document.querySelectorAll('.actions-dropdown').forEach(dropdown => {
+        const btn = dropdown.querySelector('.btn-icon');
+        const menu = dropdown.querySelector('.dropdown-menu');
+        
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+            menu.classList.toggle('show');
+        });
+    });
+    
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+    });
+    </script>
+</body>
+</html>
